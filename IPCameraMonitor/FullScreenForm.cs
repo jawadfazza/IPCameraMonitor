@@ -13,15 +13,15 @@ public class FullScreenForm : Form
         this.WindowState = FormWindowState.Maximized;
         this.BackColor = Color.Black;
 
-        pictureBox.Dock = DockStyle.Fill;
+        pictureBox.Dock = DockStyle.Fill; // Dock the PictureBox to fill the form
         this.Controls.Add(pictureBox);
 
-        this.DoubleClick += (s, e) => this.Close();
+        this.DoubleClick += (s, e) => this.Close(); // Close the form on double-click
         this.KeyDown += (s, e) =>
         {
             if (e.KeyCode == Keys.Escape)
             {
-                this.Close();
+                this.Close(); // Close the form on Escape key press
             }
         };
     }
@@ -29,9 +29,9 @@ public class FullScreenForm : Form
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         base.OnFormClosed(e);
-        this.Controls.Remove(pictureBox);
-        pictureBox.Dock = DockStyle.None;
-        pictureBox.Parent.Controls.Add(pictureBox);
-        pictureBox.Location = (Point)pictureBox.Tag; // Restore original location
+        this.Controls.Remove(pictureBox); // Remove the PictureBox from the form
+        pictureBox.Dock = DockStyle.Fill; // Reset the dock style
+        pictureBox.Parent.Controls.Add(pictureBox); // Add the PictureBox back to its original parent
+        pictureBox.Location = (Point)pictureBox.Tag; // Restore the original location
     }
 }

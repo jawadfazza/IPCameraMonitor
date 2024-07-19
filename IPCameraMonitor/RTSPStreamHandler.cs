@@ -12,6 +12,8 @@ public class RTSPStreamHandler
     private readonly PictureBox _pictureBox;
     private bool _isRunning;
     private Thread _thread;
+    private Bitmap _bitmap;
+    private object _lock = new object();
 
     public RTSPStreamHandler(string url, PictureBox pictureBox)
     {
@@ -113,7 +115,8 @@ public class RTSPStreamHandler
                 {
                     while (ffmpeg.avcodec_receive_frame(pCodecContext, pFrame) == 0)
                     {
-                        var originalBitmap = new Bitmap(pFrame->width, pFrame->height, PixelFormat.Format24bppRgb);
+                        // Use double buffering for smoother updates
+                        Bitmap originalBitmap = new Bitmap(pFrame->width, pFrame->height, PixelFormat.Format24bppRgb);
                         var bitmapData = originalBitmap.LockBits(
                             new Rectangle(0, 0, originalBitmap.Width, originalBitmap.Height),
                             ImageLockMode.WriteOnly,
@@ -131,18 +134,26 @@ public class RTSPStreamHandler
 
                         originalBitmap.UnlockBits(bitmapData);
 
-                        var resizedBitmap = new Bitmap(_pictureBox.Width, _pictureBox.Height);
-                        using (var g = Graphics.FromImage(resizedBitmap))
+                        // Resize the bitmap
+                        Bitmap resizedBitmap = ResizeBitmap(originalBitmap, _pictureBox.Width, _pictureBox.Height);
+
+                        lock (_lock)
                         {
-                            g.DrawImage(originalBitmap, 0, 0, _pictureBox.Width, _pictureBox.Height);
+                            _bitmap?.Dispose();
+                            _bitmap = resizedBitmap;
                         }
 
+                        originalBitmap.Dispose();
+
+                        // Invoke to update the PictureBox
                         _pictureBox.Invoke(new Action(() =>
                         {
-                            _pictureBox.Image = resizedBitmap;
+                            lock (_lock)
+                            {
+                                _pictureBox.Image?.Dispose();
+                                _pictureBox.Image = (Bitmap)_bitmap.Clone();
+                            }
                         }));
-
-                        originalBitmap.Dispose();
                     }
                 }
             }
@@ -154,5 +165,16 @@ public class RTSPStreamHandler
         ffmpeg.av_packet_free(&pPacket);
         ffmpeg.avcodec_free_context(&pCodecContext);
         ffmpeg.avformat_close_input(&pFormatContext);
+    }
+
+    private Bitmap ResizeBitmap(Bitmap originalBitmap, int width, int height)
+    {
+        Bitmap resizedBitmap = new Bitmap(width, height);
+        using (var g = Graphics.FromImage(resizedBitmap))
+        {
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            g.DrawImage(originalBitmap, 0, 0, width, height);
+        }
+        return resizedBitmap;
     }
 }

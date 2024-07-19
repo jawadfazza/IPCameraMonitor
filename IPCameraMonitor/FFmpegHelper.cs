@@ -1,77 +1,57 @@
-﻿using FFmpeg.AutoGen;
-using System;
-using System.Reflection;
+﻿using System;
+using System.IO;
 using System.Runtime.InteropServices;
+using FFmpeg.AutoGen;
 
 public static class FFmpegHelper
 {
     private static bool _isInitialized = false;
 
-    public static unsafe void Initialize()
+    public static void Initialize()
     {
         if (_isInitialized) return;
 
-        ffmpeg.RootPath = AppDomain.CurrentDomain.BaseDirectory;
-        
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            LoadLibrariesWindows();
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            LoadLibrariesLinux();
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            LoadLibrariesOSX();
-        }
+        LoadFFmpegLibraries();
 
-        ///ffmpeg.avdevice_register_all();
-
+        //ffmpeg.avdevice_register_all();
         //ffmpeg.avformat_network_init();
+
         _isInitialized = true;
     }
 
-    private static void LoadLibrariesWindows()
+    public static void LoadFFmpegLibraries()
     {
-        const string dllPath = "libs/win";
-        LoadLibrary($"{dllPath}/avcodec-58.dll");
-        LoadLibrary($"{dllPath}/avdevice-58.dll");
-        LoadLibrary($"{dllPath}/avfilter-7.dll");
-        LoadLibrary($"{dllPath}/avformat-58.dll");
-        LoadLibrary($"{dllPath}/avutil-56.dll");
-        LoadLibrary($"{dllPath}/postproc-55.dll");
-        LoadLibrary($"{dllPath}/swresample-3.dll");
-        LoadLibrary($"{dllPath}/swscale-5.dll");
-    }
+        string ffmpegRootPath = AppDomain.CurrentDomain.BaseDirectory;
+        string ffmpegLibrariesPath = Path.Combine(ffmpegRootPath, "");
 
-    private static void LoadLibrariesLinux()
-    {
-        const string soPath = "libs/linux";
-        ffmpeg.avdevice_register_all();
-        LoadLibrary($"{soPath}/libavcodec.so.58");
-        LoadLibrary($"{soPath}/libavdevice.so.58");
-        LoadLibrary($"{soPath}/libavfilter.so.7");
-        LoadLibrary($"{soPath}/libavformat.so.58");
-        LoadLibrary($"{soPath}/libavutil.so.56");
-        LoadLibrary($"{soPath}/libpostproc.so.55");
-        LoadLibrary($"{soPath}/libswresample.so.3");
-        LoadLibrary($"{soPath}/libswscale.so.5");
-    }
+        if (!Directory.Exists(ffmpegLibrariesPath))
+        {
+            throw new DirectoryNotFoundException($"FFmpeg libraries not found in path: {ffmpegLibrariesPath}");
+        }
 
-    private static void LoadLibrariesOSX()
-    {
-        const string dylibPath = "libs/osx";
-        LoadLibrary($"{dylibPath}/libavcodec.58.dylib");
-        LoadLibrary($"{dylibPath}/libavdevice.58.dylib");
-        LoadLibrary($"{dylibPath}/libavfilter.7.dylib");
-        LoadLibrary($"{dylibPath}/libavformat.58.dylib");
-        LoadLibrary($"{dylibPath}/libavutil.56.dylib");
-        LoadLibrary($"{dylibPath}/libpostproc.55.dylib");
-        LoadLibrary($"{dylibPath}/libswresample.3.dylib");
-        LoadLibrary($"{dylibPath}/libswscale.5.dylib");
+        string[] libraries = {
+            "avcodec-57.dll",
+            "avdevice-57.dll",
+            "avfilter-6.dll",
+            "avformat-57.dll",
+            "avutil-55.dll",
+            "postproc-54.dll",
+            "swresample-2.dll",
+            "swscale-4.dll"
+        };
+
+        foreach (var library in libraries)
+        {
+            string libraryPath = Path.Combine(ffmpegLibrariesPath, library);
+            if (!File.Exists(libraryPath))
+            {
+                throw new FileNotFoundException($"FFmpeg library not found: {libraryPath}");
+            }
+
+            LoadLibrary(libraryPath);
+        }
     }
 
     [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi)]
-    private static extern IntPtr LoadLibrary([MarshalAs(UnmanagedType.LPStr)] string lpFileName);
+    private static extern IntPtr LoadLibrary(string lpFileName);
 }
