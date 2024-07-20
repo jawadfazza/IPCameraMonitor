@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using System.Xml.Serialization;
+using Accord.Video.FFMPEG;
 using AForge.Video;
 using FFmpeg.AutoGen;
 
@@ -17,30 +19,28 @@ namespace IPCameraMonitor
         private const int MaxCameras = 10; // Set a reasonable limit based on system capacity
         private const string ConfigFilePath = "CameraConfig.xml";
         private Dictionary<string, (Button btnConnect, Button btnDisconnect)> cameraButtons = new Dictionary<string, (Button, Button)>();
+        private Dictionary<string, VideoFileWriter> videoWriters = new Dictionary<string, VideoFileWriter>(); // Dictionary to store video writers
 
         public Form1()
         {
             InitializeComponent();
-            //this.WindowState = FormWindowState.Maximized; // Open Form1 in full screen
             FFmpegHelper.Initialize();
             LoadCameraConfigurations();
 
+            // Attach the FormClosing event handler
+            this.FormClosing += Form1_FormClosing;
         }
 
         private void btnAddCamera_Click(object sender, EventArgs e)
         {
-
             AddCameraPanel();
-
         }
+
         private void Form1_Load(object sender, EventArgs e)
         {
             // Initialize the FlowLayoutPanel
-           // flowLayoutPanel.AutoScroll = true;
-            //flowLayoutPanel.FlowDirection = FlowDirection.TopDown;
-            //flowLayoutPanel.WrapContents = false;
-            //flowLayoutPanel.Dock = DockStyle.Fill;
         }
+
         private void AddCameraPanel(CameraConfig config = null)
         {
             // Get the system resolution
@@ -100,10 +100,6 @@ namespace IPCameraMonitor
             };
             pictureBox.DoubleClick += (s, e) => OpenFullScreen(pictureBox);
 
-            //var rtspStreamHandler = new RTSPStreamHandler("D:\\Mostakel\\New folder\\"+ config.IPAddress + "_output.mp4", pictureBox );
-            //rtspStreamHandler.Start();
-
-
             Label lblIPAddress = new Label { Text = "IP Address", Location = new Point(10, 20), AutoSize = true };
             TextBox txtIPAddress = new TextBox { Name = "txtIPAddress", Size = new Size(250, 20), Location = new Point(100, 20) };
 
@@ -118,23 +114,27 @@ namespace IPCameraMonitor
             comboBoxStreamType.Items.AddRange(new object[] { "MJPEG", "RTSP" });
             comboBoxStreamType.SelectedIndex = 0;
 
-            Button btnConnect = new Button { Text = "Connect", Size = new Size(100, 25), Location = new Point(10, 5) };
-            Button btnDisconnect = new Button { Text = "Disconnect", Size = new Size(100, 25), Location = new Point(120, 5) };
+            Button btnConnect = new Button { Text = "Connect", Size = new Size(85, 25), Location = new Point(10, 5) };
+            Button btnDisconnect = new Button { Text = "Disconnect", Size = new Size(85, 25), Location = new Point(95, 5) };
+            Button btnSaveStream = new Button { Text = "Save", Size = new Size(60, 25), Location = new Point(200, 5) };
+            Button btnStopRecording = new Button { Text = "Stop", Size = new Size(60, 25), Location = new Point(265, 5), Enabled = false };
 
-            Button btnDelete = new Button { Text = "Delete", Size = new Size(100, 25), Location = new Point(230, 5) };
+            Button btnDelete = new Button { Text = "Delete", Size = new Size(70, 25), Location = new Point(330, 5) };
             btnDelete.Click += (s, e) => DeleteCameraPanel(cameraGroupBox);
 
-            btnConnect.Click += (s, e) => ConnectCamera(txtIPAddress.Text, txtUsername.Text, txtPassword.Text, comboBoxStreamType.SelectedItem.ToString(), pictureBox, btnConnect, btnDisconnect, btnDelete, cameraPanel, configPanel);
-            btnDisconnect.Click += (s, e) => DisconnectCamera(txtIPAddress.Text, btnConnect,btnDisconnect);
+            btnConnect.Click += (s, e) => ConnectCamera(txtIPAddress.Text, txtUsername.Text, txtPassword.Text, comboBoxStreamType.SelectedItem.ToString(), pictureBox, btnConnect, btnDisconnect, btnSaveStream, btnStopRecording, btnDelete, cameraPanel, configPanel);
+            btnDisconnect.Click += (s, e) => DisconnectCamera(txtIPAddress.Text, btnConnect, btnDisconnect, btnSaveStream, btnStopRecording);
+            btnSaveStream.Click += (s, e) => SaveStream(txtIPAddress.Text, comboBoxStreamType.SelectedItem.ToString(), txtUsername.Text, txtPassword.Text, btnSaveStream, btnStopRecording);
+            btnStopRecording.Click += (s, e) => StopRecording(txtIPAddress.Text, btnSaveStream, btnStopRecording);
 
             if (config != null)
             {
                 cameraButtons.Add(config.IPAddress, (btnConnect, btnDisconnect));
             }
-                SetPlaceholder(txtIPAddress, "IP Address");
-                SetPlaceholder(txtUsername, "Username");
-                SetPlaceholder(txtPassword, "Password");
-            
+
+            SetPlaceholder(txtIPAddress, "IP Address");
+            SetPlaceholder(txtUsername, "Username");
+            SetPlaceholder(txtPassword, "Password");
 
             if (config != null)
             {
@@ -142,7 +142,7 @@ namespace IPCameraMonitor
                 txtUsername.Text = config.Username;
                 txtPassword.Text = config.Password;
                 comboBoxStreamType.SelectedItem = config.StreamType;
-                ConnectCamera(config.IPAddress, config.Username, config.Password, config.StreamType, pictureBox, btnConnect, btnDisconnect, btnDelete, cameraPanel, configPanel);
+                ConnectCamera(config.IPAddress, config.Username, config.Password, config.StreamType, pictureBox, btnConnect, btnDisconnect, btnSaveStream, btnStopRecording, btnDelete, cameraPanel, configPanel);
             }
 
             configPanel.Controls.Add(lblIPAddress);
@@ -156,6 +156,8 @@ namespace IPCameraMonitor
 
             actionPanel.Controls.Add(btnConnect);
             actionPanel.Controls.Add(btnDisconnect);
+            actionPanel.Controls.Add(btnSaveStream);
+            actionPanel.Controls.Add(btnStopRecording);
             actionPanel.Controls.Add(btnDelete);
 
             cameraPanel.Controls.Add(pictureBox);
@@ -167,28 +169,135 @@ namespace IPCameraMonitor
             flowLayoutPanel.Controls.Add(cameraGroupBox);
         }
 
+        private void SaveStream(string ipAddress, string streamType, string username, string password, Button btnSaveStream, Button btnStopRecording)
+        {
+            if (streamType == "MJPEG")
+            {
+                string url = $"http://{username}:{password}@{ipAddress}/mjpg/video.mjpg";
+                string outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), $"{Guid.NewGuid()}_output.avi");
 
-        private void ConnectCamera(string ipAddress, string username, string password, string streamType, PictureBox pictureBox, Button btnConnect, Button btnDisconnect, Button btnDelete, Panel cameraPanel, GroupBox configPanel)
+                var mjpegStream = new MJPEGStream(url);
+                var videoWriter = new VideoFileWriter();
+                videoWriters[ipAddress] = videoWriter; // Store the videoWriter in the dictionary
+
+                try
+                {
+                    bool isFirstFrame = true;
+                    mjpegStream.NewFrame += (s, e) =>
+                    {
+                        using (Bitmap frame = (Bitmap)e.Frame.Clone())
+                        {
+                            if (isFirstFrame)
+                            {
+                                videoWriter.Open(outputPath, frame.Width, frame.Height, 30, VideoCodec.MPEG4); // Use frame dimensions
+                                isFirstFrame = false;
+                            }
+
+                            using (Bitmap convertedFrame = ConvertToFormat(frame, PixelFormat.Format24bppRgb))
+                            {
+                                videoWriter.WriteVideoFrame(convertedFrame);
+                            }
+                        }
+                    };
+
+                    mjpegStream.Start();
+                    mjpegStreams.Add(mjpegStream); // Add the stream to the list for proper management
+
+                    btnSaveStream.Enabled = false;
+                    btnStopRecording.Enabled = true;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error saving stream: {ex.Message}");
+                    CloseVideoWriter(videoWriter);
+                }
+            }
+            else if (streamType == "RTSP")
+            {
+                string url = $"rtsp://{username}:{password}@{ipAddress}/stream";
+                string outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), $"{ipAddress}_output.mp4");
+
+                var rtspStreamHandler = new RTSPStreamHandler(url, null);
+                // Implement SaveStream for RTSP if needed.
+                // rtspStreamHandler.SaveStream(outputPath);
+            }
+        }
+
+        // Helper method to convert Bitmap to specified format
+        private Bitmap ConvertToFormat(Bitmap original, PixelFormat format)
+        {
+            Bitmap converted = new Bitmap(original.Width, original.Height, format);
+            using (Graphics g = Graphics.FromImage(converted))
+            {
+                g.DrawImage(original, new Rectangle(0, 0, converted.Width, converted.Height));
+            }
+            return converted;
+        }
+
+        private void CloseVideoWriter(VideoFileWriter videoWriter)
+        {
+            if (videoWriter != null && videoWriter.IsOpen)
+            {
+                videoWriter.Close();
+                videoWriter.Dispose();
+            }
+        }
+
+        private void StopRecording(string ipAddress, Button btnSaveStream, Button btnStopRecording)
+        {
+            if (videoWriters.ContainsKey(ipAddress))
+            {
+                var videoWriter = videoWriters[ipAddress];
+                CloseVideoWriter(videoWriter);
+                videoWriters.Remove(ipAddress);
+
+                btnSaveStream.Enabled = true;
+                btnStopRecording.Enabled = false;
+            }
+
+            // Stop the MJPEG stream associated with the provided IP address
+            var mjpegStream = mjpegStreams.FirstOrDefault(stream => stream.Source.ToString().Contains(ipAddress));
+            if (mjpegStream != null)
+            {
+                mjpegStream.SignalToStop();
+                mjpegStream.WaitForStop();
+                mjpegStreams.Remove(mjpegStream);
+            }
+        }
+
+
+        // Helper method to convert Bitmap to specified format
+
+
+        private void ConnectCamera(string ipAddress, string username, string password, string streamType, PictureBox pictureBox, Button btnConnect, Button btnDisconnect, Button btnSaveStream, Button btnStopRecording, Button btnDelete, Panel cameraPanel, GroupBox configPanel)
         {
             btnConnect.Enabled = false;
             btnDisconnect.Enabled = true;
+            btnSaveStream.Enabled = true;
             btnConnect.Text = "Connecting...";
+
             if (streamType == "MJPEG")
             {
                 string url = $"http://{username}:{password}@{ipAddress}/mjpg/video.mjpg";
                 var mjpegStream = new MJPEGStream(url);
                 mjpegStream.NewFrame += (s, e) =>
                 {
-                    Bitmap originalBitmap = (Bitmap)e.Frame.Clone();
-                    Bitmap resizedBitmap = new Bitmap(pictureBox.Width, pictureBox.Height);
-
-                    using (Graphics g = Graphics.FromImage(resizedBitmap))
+                    using (Bitmap originalBitmap = (Bitmap)e.Frame.Clone())
                     {
-                        g.DrawImage(originalBitmap, 0, 0, pictureBox.Width, pictureBox.Height);
-                    }
+                        Bitmap resizedBitmap = new Bitmap(pictureBox.Width, pictureBox.Height);
 
-                    pictureBox.Image = resizedBitmap;
-                    originalBitmap.Dispose();
+                        using (Graphics g = Graphics.FromImage(resizedBitmap))
+                        {
+                            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                            g.DrawImage(originalBitmap, 0, 0, pictureBox.Width, pictureBox.Height);
+                        }
+
+                        pictureBox.Invoke(new Action(() =>
+                        {
+                            pictureBox.Image?.Dispose();
+                            pictureBox.Image = resizedBitmap;
+                        }));
+                    }
                 };
                 mjpegStreams.Add(mjpegStream);
                 mjpegStream.Start();
@@ -201,16 +310,14 @@ namespace IPCameraMonitor
                 rtspStreamHandler.Start();
             }
 
-            // Hide configuration controls and resize PictureBox
             HideConfigControls(configPanel, cameraPanel, pictureBox);
-           
         }
 
-        private void HideConfigControls(GroupBox configPanel,Panel cameraPanel, PictureBox pictureBox)
+        private void HideConfigControls(GroupBox configPanel, Panel cameraPanel, PictureBox pictureBox)
         {
             configPanel.Visible = false;
             pictureBox.Location = new Point(10, 10);
-            cameraPanel.Dock=DockStyle.Fill;
+            cameraPanel.Dock = DockStyle.Fill;
         }
 
         private void DeleteCameraPanel(GroupBox cameraGroupBox)
@@ -269,7 +376,7 @@ namespace IPCameraMonitor
             foreach (var stream in mjpegStreams)
             {
                 stream.SignalToStop();
-                stream.WaitForStop();
+                //stream.WaitForStop();
             }
             mjpegStreams.Clear();
 
@@ -278,27 +385,18 @@ namespace IPCameraMonitor
                 handler.Stop();
             }
             rtspStreamHandlers.Clear();
+
+            // Close all video writers
+            foreach (var videoWriter in videoWriters.Values)
+            {
+                CloseVideoWriter(videoWriter);
+            }
+            videoWriters.Clear();
         }
 
-        private void DisconnectCamera(string ipAddress, Button btnConnect, Button btnDisconnect)
+        private void DisconnectCamera(string ipAddress, Button btnConnect, Button btnDisconnect, Button btnSaveStream, Button btnStopRecording)
         {
-            // Stop the MJPEG stream associated with the provided IP address
-            var mjpegStream = mjpegStreams.FirstOrDefault(stream => stream.Source.ToString().Contains(ipAddress));
-            if (mjpegStream != null)
-            {
-                mjpegStream.SignalToStop();
-                mjpegStream.WaitForStop();
-                mjpegStreams.Remove(mjpegStream);
-            }
-
-            // Stop the RTSP stream handler associated with the provided IP address
-            //var rtspStreamHandler = rtspStreamHandlers.FirstOrDefault(handler => handler.so.Contains(ipAddress));
-            //if (rtspStreamHandler != null)
-            //{
-            //    rtspStreamHandler.Stop();
-            //    rtspStreamHandlers.Remove(rtspStreamHandler);
-            //}
-
+            StopRecording(ipAddress, btnSaveStream, btnStopRecording);
 
             if (cameraButtons.ContainsKey(ipAddress))
             {
@@ -308,6 +406,8 @@ namespace IPCameraMonitor
             }
         }
 
+
+      
 
         private void SaveCameraConfigurations()
         {
@@ -326,26 +426,25 @@ namespace IPCameraMonitor
                             var txtPassword = panel.Controls["txtPassword"] as TextBox;
                             var comboBoxStreamType = panel.Controls["comboBoxStreamType"] as ComboBox;
 
-                           
-                                try
+                            try
+                            {
+                                CameraConfig config = new CameraConfig
                                 {
-                                    CameraConfig config = new CameraConfig
-                                    {
-                                        IPAddress = txtIPAddress.Text,
-                                        Username = txtUsername.Text,
-                                        Password = txtPassword.Text,
-                                        StreamType = comboBoxStreamType.SelectedItem?.ToString()
-                                    };
+                                    IPAddress = txtIPAddress.Text,
+                                    Username = txtUsername.Text,
+                                    Password = txtPassword.Text,
+                                    StreamType = comboBoxStreamType.SelectedItem?.ToString()
+                                };
 
-                                    configs.Add(config);
-                                }
-                                catch (Exception ex)
-                                {
-                                    // Log or handle exceptions if necessary
-                                    MessageBox.Show("Error saving configuration: " + ex.Message);
-                                }
+                                configs.Add(config);
                             }
-                        
+                            catch (Exception ex)
+                            {
+                                // Log or handle exceptions if necessary
+                                MessageBox.Show("Error saving configuration: " + ex.Message);
+                            }
+                        }
+
                     }
                 }
             }
@@ -378,7 +477,5 @@ namespace IPCameraMonitor
             SaveCameraConfigurations();
             DisconnectAllCameras();
         }
-
-       
     }
 }

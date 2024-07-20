@@ -36,6 +36,11 @@ public class RTSPStreamHandler
         _thread?.Join();
     }
 
+    public void SaveStream(string outputPath)
+    {
+        // Implement logic to save the stream to a local file using FFmpeg
+    }
+
     private unsafe void DecodeStream()
     {
         AVFormatContext* pFormatContext = ffmpeg.avformat_alloc_context();
