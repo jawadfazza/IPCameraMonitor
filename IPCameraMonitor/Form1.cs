@@ -9,6 +9,7 @@ using System.Xml.Serialization;
 using Accord.Video.FFMPEG;
 using AForge.Video;
 using FFmpeg.AutoGen;
+using System.Linq;
 
 namespace IPCameraMonitor
 {
@@ -41,6 +42,7 @@ namespace IPCameraMonitor
             // Initialize the FlowLayoutPanel
         }
 
+     
         private void AddCameraPanel(CameraConfig config = null)
         {
             // Get the system resolution
@@ -364,7 +366,7 @@ namespace IPCameraMonitor
             foreach (var stream in mjpegStreams)
             {
                 stream.SignalToStop();
-                stream.WaitForStop();
+                //stream.WaitForStop();
             }
             mjpegStreams.Clear();
 
@@ -462,6 +464,21 @@ namespace IPCameraMonitor
         {
             SaveCameraConfigurations();
             DisconnectAllCameras();
+        }
+
+        private void ShowAllCamerasFullScreen(object sender, EventArgs e)
+        {
+            var cameraPictureBoxes = flowLayoutPanel.Controls
+         .OfType<GroupBox>()
+         .SelectMany(groupBox => groupBox.Controls.OfType<Panel>())
+         .SelectMany(panel => panel.Controls.OfType<PictureBox>())
+         .ToList();
+
+            if (cameraPictureBoxes.Any())
+            {
+                var fullScreenForm = new MultiCameraFullScreenForm(cameraPictureBoxes);
+                fullScreenForm.ShowDialog();
+            }
         }
     }
 }
