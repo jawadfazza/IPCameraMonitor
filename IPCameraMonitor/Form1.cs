@@ -254,19 +254,7 @@ namespace IPCameraMonitor
                 btnSaveStream.Enabled = true;
                 btnStopRecording.Enabled = false;
             }
-
-            // Stop the MJPEG stream associated with the provided IP address
-            var mjpegStream = mjpegStreams.FirstOrDefault(stream => stream.Source.ToString().Contains(ipAddress));
-            if (mjpegStream != null)
-            {
-                mjpegStream.SignalToStop();
-                mjpegStream.WaitForStop();
-                mjpegStreams.Remove(mjpegStream);
-            }
         }
-
-
-        // Helper method to convert Bitmap to specified format
 
 
         private void ConnectCamera(string ipAddress, string username, string password, string streamType, PictureBox pictureBox, Button btnConnect, Button btnDisconnect, Button btnSaveStream, Button btnStopRecording, Button btnDelete, Panel cameraPanel, GroupBox configPanel)
@@ -376,7 +364,7 @@ namespace IPCameraMonitor
             foreach (var stream in mjpegStreams)
             {
                 stream.SignalToStop();
-                //stream.WaitForStop();
+                stream.WaitForStop();
             }
             mjpegStreams.Clear();
 
@@ -398,6 +386,7 @@ namespace IPCameraMonitor
         {
             StopRecording(ipAddress, btnSaveStream, btnStopRecording);
 
+            // Do not stop the MJPEG stream here
             if (cameraButtons.ContainsKey(ipAddress))
             {
                 var buttons = cameraButtons[ipAddress];
@@ -405,9 +394,6 @@ namespace IPCameraMonitor
                 buttons.btnDisconnect.Enabled = false;
             }
         }
-
-
-      
 
         private void SaveCameraConfigurations()
         {
