@@ -17,14 +17,22 @@
 
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.saveToolStripButton = new System.Windows.Forms.ToolStripButton();
             this.toolStripSeparator = new System.Windows.Forms.ToolStripSeparator();
-            this.flowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.toolStripButton1 = new System.Windows.Forms.ToolStripButton();
+            this.toolStripDropDownButton1 = new System.Windows.Forms.ToolStripDropDownButton();
+            this.btnSaveRecords = new System.Windows.Forms.ToolStripMenuItem();
+            this.btnViewRecords = new System.Windows.Forms.ToolStripMenuItem();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.treeViewConfiguredCameras = new System.Windows.Forms.TreeView();
+            this.imageList1 = new System.Windows.Forms.ImageList(this.components);
+            this.flowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.toolStrip1.SuspendLayout();
+            this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // statusStrip1
@@ -40,7 +48,8 @@
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.saveToolStripButton,
             this.toolStripSeparator,
-            this.toolStripButton1});
+            this.toolStripButton1,
+            this.toolStripDropDownButton1});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
             this.toolStrip1.Size = new System.Drawing.Size(800, 25);
@@ -60,15 +69,6 @@
             this.toolStripSeparator.Name = "toolStripSeparator";
             this.toolStripSeparator.Size = new System.Drawing.Size(6, 25);
             // 
-            // flowLayoutPanel
-            // 
-            this.flowLayoutPanel.AutoScroll = true;
-            this.flowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.flowLayoutPanel.Location = new System.Drawing.Point(0, 25);
-            this.flowLayoutPanel.Name = "flowLayoutPanel";
-            this.flowLayoutPanel.Size = new System.Drawing.Size(800, 548);
-            this.flowLayoutPanel.TabIndex = 4;
-            // 
             // toolStripButton1
             // 
             this.toolStripButton1.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButton1.Image")));
@@ -78,12 +78,76 @@
             this.toolStripButton1.Text = "Full Screen All";
             this.toolStripButton1.Click += new System.EventHandler(this.ShowAllCamerasFullScreen);
             // 
+            // toolStripDropDownButton1
+            // 
+            this.toolStripDropDownButton1.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.toolStripDropDownButton1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.btnSaveRecords,
+            this.btnViewRecords});
+            this.toolStripDropDownButton1.Image = ((System.Drawing.Image)(resources.GetObject("toolStripDropDownButton1.Image")));
+            this.toolStripDropDownButton1.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripDropDownButton1.Name = "toolStripDropDownButton1";
+            this.toolStripDropDownButton1.Size = new System.Drawing.Size(62, 22);
+            this.toolStripDropDownButton1.Text = "Records";
+            // 
+            // btnSaveRecords
+            // 
+            this.btnSaveRecords.Name = "btnSaveRecords";
+            this.btnSaveRecords.Size = new System.Drawing.Size(180, 22);
+            this.btnSaveRecords.Text = "Save Records";
+            this.btnSaveRecords.Click += new System.EventHandler(this.btnSaveRecords_Click);
+            // 
+            // btnViewRecords
+            // 
+            this.btnViewRecords.Name = "btnViewRecords";
+            this.btnViewRecords.Size = new System.Drawing.Size(180, 22);
+            this.btnViewRecords.Text = "View Records";
+            this.btnViewRecords.Click += new System.EventHandler(this.btnViewRecords_Click);
+            // 
+            // panel1
+            // 
+            this.panel1.Controls.Add(this.treeViewConfiguredCameras);
+            this.panel1.Dock = System.Windows.Forms.DockStyle.Left;
+            this.panel1.Location = new System.Drawing.Point(0, 25);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(275, 548);
+            this.panel1.TabIndex = 5;
+            // 
+            // treeViewConfiguredCameras
+            // 
+            this.treeViewConfiguredCameras.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.treeViewConfiguredCameras.Font = new System.Drawing.Font("Microsoft Sans Serif", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.treeViewConfiguredCameras.ImageIndex = 0;
+            this.treeViewConfiguredCameras.ImageList = this.imageList1;
+            this.treeViewConfiguredCameras.Location = new System.Drawing.Point(0, 0);
+            this.treeViewConfiguredCameras.Name = "treeViewConfiguredCameras";
+            this.treeViewConfiguredCameras.SelectedImageIndex = 0;
+            this.treeViewConfiguredCameras.Size = new System.Drawing.Size(275, 548);
+            this.treeViewConfiguredCameras.TabIndex = 0;
+            this.treeViewConfiguredCameras.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.TreeViewConfiguredCameras_AfterSelect);
+            // 
+            // imageList1
+            // 
+            this.imageList1.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("imageList1.ImageStream")));
+            this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
+            this.imageList1.Images.SetKeyName(0, "camera_Icon.png");
+            // 
+            // flowLayoutPanel
+            // 
+            this.flowLayoutPanel.AutoScroll = true;
+            this.flowLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.flowLayoutPanel.Location = new System.Drawing.Point(275, 25);
+            this.flowLayoutPanel.Name = "flowLayoutPanel";
+            this.flowLayoutPanel.Size = new System.Drawing.Size(525, 548);
+            this.flowLayoutPanel.TabIndex = 6;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 595);
             this.Controls.Add(this.flowLayoutPanel);
+            this.Controls.Add(this.panel1);
             this.Controls.Add(this.toolStrip1);
             this.Controls.Add(this.statusStrip1);
             this.ForeColor = System.Drawing.SystemColors.ControlText;
@@ -95,6 +159,7 @@
             this.Load += new System.EventHandler(this.Form1_Load);
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
+            this.panel1.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -106,7 +171,13 @@
         private System.Windows.Forms.ToolStrip toolStrip1;
         private System.Windows.Forms.ToolStripButton saveToolStripButton;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator;
-        private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel;
         private System.Windows.Forms.ToolStripButton toolStripButton1;
+        private System.Windows.Forms.ToolStripDropDownButton toolStripDropDownButton1;
+        private System.Windows.Forms.ToolStripMenuItem btnSaveRecords;
+        private System.Windows.Forms.ToolStripMenuItem btnViewRecords;
+        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel;
+        private System.Windows.Forms.TreeView treeViewConfiguredCameras;
+        private System.Windows.Forms.ImageList imageList1;
     }
 }

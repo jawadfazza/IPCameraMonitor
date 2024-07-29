@@ -6,6 +6,7 @@ using System.Windows.Forms;
 
 namespace IPCameraMonitor
 {
+
     internal static class Program
     {
         /// <summary>
@@ -14,11 +15,11 @@ namespace IPCameraMonitor
         [STAThread]
         static void Main()
         {
-            try {
+           
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new Form1());
-            } catch { }
+           
             
         }
     }
