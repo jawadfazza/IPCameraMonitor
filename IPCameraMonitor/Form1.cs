@@ -61,6 +61,7 @@ namespace IPCameraMonitor
 
             Panel actionPanel = new Panel
             {
+                Name = "actionPanel",
                 Size = new Size(groupBoxWidth - 20, 30),
                 BorderStyle = BorderStyle.None,
                 Padding = new Padding(5),
@@ -237,8 +238,6 @@ namespace IPCameraMonitor
             configPanel.Visible = true;
             btnUpdateConfig.Visible = true;
         }
-
-
 
         private async Task ConnectCameraAsync(string ipAddress, string username, string password, string streamType, PictureBox pictureBox, ToolStripMenuItem btnConnect, ToolStripMenuItem btnDisconnect, ToolStripMenuItem btnSaveStream, ToolStripMenuItem btnStopRecording, ToolStripMenuItem btnShowConfig, ToolStripMenuItem btnRemove, Panel cameraPanel, GroupBox configPanel)
         {
@@ -569,11 +568,7 @@ namespace IPCameraMonitor
 
         private void btnSaveRecords_Click(object sender, EventArgs e)
         {
-            XmlSerializer serializer = new XmlSerializer(typeof(List<CameraRecord>));
-            using (StreamWriter writer = new StreamWriter(RecordsFilePath))
-            {
-                serializer.Serialize(writer, cameraRecords);
-            }
+
         }
 
         private void LoadRecordsFromFile()
@@ -594,7 +589,7 @@ namespace IPCameraMonitor
             recordsForm.ShowDialog();
         }
 
-        private async void StartRecording(string ipAddress, string streamType, string username, string password, ToolStripMenuItem btnSaveStream, ToolStripMenuItem btnStopRecording, Timer blinkTimer, Panel redCircle)
+        private async Task StartRecording(string ipAddress, string streamType, string username, string password, ToolStripMenuItem btnSaveStream, ToolStripMenuItem btnStopRecording, Timer blinkTimer, Panel redCircle)
         {
             if (streamType == "MJPEG")
             {
@@ -683,7 +678,56 @@ namespace IPCameraMonitor
                 videoWriter.Dispose();
             }
         }
+        private async void miStartRecording_Click(object sender, EventArgs e)
+        {
+            foreach (Control control in flowLayoutPanel.Controls)
+            {
+                if (control is GroupBox groupBox)
+                {
+                    string ipAddress = "";
+                    string username = "";
+                    string password = "";
+
+                    foreach (Control groupBoxControl in groupBox.Controls)
+                    {
+                        if (groupBoxControl is GroupBox panel && panel.Name == "configPanel")
+                        {
+                            ipAddress = (panel.Controls["txtIPAddress"] as TextBox).Text;
+                            username = (panel.Controls["txtUsername"] as TextBox).Text;
+                            password = (panel.Controls["txtPassword"] as TextBox).Text;
+
+                            if (!string.IsNullOrEmpty(ipAddress))
+                            {
+                                var redCircle = new Panel
+                                {
+                                    Size = new Size(10, 10),
+                                    BackColor = Color.Red,
+                                    Visible = false
+                                };
+                                groupBox.Controls[0].Controls.Add(redCircle);
+
+                                var blinkTimer = new Timer
+                                {
+                                    Interval = 500
+                                };
+                                blinkTimer.Tick += (s, args) => redCircle.Visible = !redCircle.Visible;
+
+                                try
+                                {
+                                    await StartRecording(ipAddress, "MJPEG", username, password,  null, null, blinkTimer, redCircle);
+                                }
+                                catch (Exception ex)
+                                {
+                                    MessageBox.Show("Error starting recording: " + ex.Message);
+                                }
+                            }
+                        }
+                      
+                    }
 
 
+                }
+            }
+        }
     }
 }
