@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -22,25 +23,64 @@ namespace IPCameraMonitor
             cameraRecords = records.GroupBy(r => r.IPAddress)
                                    .ToDictionary(g => g.Key, g => g.ToList());
             InitializeComponents();
+            this.Text = "Camera Records";
+            this.WindowState = FormWindowState.Maximized;
+            this.Font = new Font("Segoe UI", 10, FontStyle.Regular);
         }
 
         private void InitializeComponents()
         {
+            InitializeFilterTextBox();
+            InitializeTreeView();
+            InitializeDataGridView();
+            InitializeStatusStrip();
+
+            LayoutComponents();
+        }
+
+        private void InitializeFilterTextBox()
+        {
             filterTextBox = new TextBox
             {
                 Dock = DockStyle.Top,
-                //PlaceholderText = "Enter filter text..."
+                Font = new Font("Segoe UI", 10, FontStyle.Italic),
+                ForeColor = Color.Gray,
+                Text = "Enter filter text..."
+            };
+            filterTextBox.GotFocus += (sender, e) =>
+            {
+                if (filterTextBox.Text == "Enter filter text...")
+                {
+                    filterTextBox.Text = "";
+                    filterTextBox.ForeColor = Color.Black;
+                    filterTextBox.Font = new Font("Segoe UI", 10, FontStyle.Regular);
+                }
+            };
+            filterTextBox.LostFocus += (sender, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(filterTextBox.Text))
+                {
+                    filterTextBox.ForeColor = Color.Gray;
+                    filterTextBox.Font = new Font("Segoe UI", 10, FontStyle.Italic);
+                    filterTextBox.Text = "Enter filter text...";
+                }
             };
             filterTextBox.TextChanged += FilterTextBox_TextChanged;
+        }
 
+        private void InitializeTreeView()
+        {
             cameraTreeView = new TreeView
             {
-                Dock = DockStyle.Fill,
-                Font = new Font("Arial", 10, FontStyle.Regular),
+                Dock = DockStyle.Left,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
                 Width = 200
             };
             cameraTreeView.AfterSelect += CameraTreeView_AfterSelect;
+        }
 
+        private void InitializeDataGridView()
+        {
             dataGridView = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -49,14 +89,27 @@ namespace IPCameraMonitor
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                Width = 700
+                MultiSelect = false
             };
             dataGridView.CellDoubleClick += DataGridView_CellDoubleClick;
+            dataGridView.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 245, 245);
+        }
 
+        private void InitializeStatusStrip()
+        {
             statusStrip = new StatusStrip();
             statusLabel = new ToolStripStatusLabel();
             statusStrip.Items.Add(statusLabel);
+        }
+
+        private void LayoutComponents()
+        {
+            SplitContainer splitContainer = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Vertical,
+                SplitterDistance = 200
+            };
 
             GroupBox treeViewGroupBox = new GroupBox
             {
@@ -71,30 +124,17 @@ namespace IPCameraMonitor
             {
                 Text = "Records",
                 Dock = DockStyle.Fill,
-                Padding = new Padding(10),
-                Width = 700
+                Padding = new Padding(10)
             };
             dataGridViewGroupBox.Controls.Add(dataGridView);
 
-            SplitContainer splitContainer = new SplitContainer
-            {
-                Dock = DockStyle.Fill,
-                Orientation = Orientation.Vertical,
-                SplitterDistance = 10,
-
-            };
-
             splitContainer.Panel1.Controls.Add(treeViewGroupBox);
             splitContainer.Panel2.Controls.Add(dataGridViewGroupBox);
-            splitContainer.Panel2.Controls.Add(statusStrip);
 
             this.Controls.Add(splitContainer);
-            this.Load += RecordsForm_Load;
+            this.Controls.Add(statusStrip);
 
-            // Set Form properties
-            this.Text = "Camera Records";
-            this.WindowState = FormWindowState.Maximized;
-            this.Font = new Font("Arial", 10, FontStyle.Regular);
+            this.Load += RecordsForm_Load;
         }
 
         private void RecordsForm_Load(object sender, EventArgs e)
@@ -148,7 +188,14 @@ namespace IPCameraMonitor
                 var selectedRecord = dataGridView.Rows[e.RowIndex].DataBoundItem as CameraRecord;
                 if (selectedRecord != null)
                 {
-                    System.Diagnostics.Process.Start(selectedRecord.FilePath);
+                    if (File.Exists(selectedRecord.FilePath))
+                    {
+                        System.Diagnostics.Process.Start(selectedRecord.FilePath);
+                    }
+                    else
+                    {
+                        MessageBox.Show("File not found: " + selectedRecord.FilePath, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
         }
@@ -162,6 +209,4 @@ namespace IPCameraMonitor
             statusLabel.Text = $"Total Records: {count}";
         }
     }
-
-   
 }
